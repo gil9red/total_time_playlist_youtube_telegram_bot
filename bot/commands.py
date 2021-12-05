@@ -23,7 +23,10 @@ from third_party.youtube_com__results_search_query import Playlist
 
 
 def get_description_playlist(playlist: Playlist, full=True) -> str:
-    lines = [f'Playlist {playlist.title!r}']
+    lines = [
+        f'Playlist {playlist.title!r}.',
+        f'Video count: {len(playlist.video_list)}'
+    ]
     if full:
         lines.append('Video:')
         for video in playlist.video_list:
