@@ -41,7 +41,9 @@ def reply_playlist(playlist_id_or_url: str, update: Update, context: CallbackCon
         playlist = Playlist.get_from(playlist_id_or_url)
     except:
         text = 'Invalid playlist id or url!'
-        log.exception(text)
+
+        if is_admin(update):
+            log.exception(text)
 
         reply_message(text, update, context, severity=SeverityEnum.ERROR)
         return
