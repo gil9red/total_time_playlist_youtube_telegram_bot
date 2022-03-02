@@ -16,7 +16,8 @@ from bot.auth import (
 )
 from bot.regexp_patterns import (
     PATTERN_PLAYLIST_ID, PATTERN_GENERATE_RANDOM_PASSWORD, PATTERN_CANCEL,
-    PATTERN_GET_BOT_PASSWORD, PATTERN_SET_BOT_PASSWORD
+    PATTERN_GET_BOT_PASSWORD, PATTERN_SET_BOT_PASSWORD, COMMAND_GET_BOT_PASSWORD,
+    COMMAND_SET_BOT_PASSWORD, COMMAND_REMOVE_REPLY_KEYBOARD, PATTERN_REMOVE_REPLY_KEYBOARD
 )
 from third_party.regexp import fill_string_pattern
 from third_party.youtube_com__results_search_query import Playlist
@@ -111,6 +112,12 @@ def on_typing_bot_password(update: Update, context: CallbackContext):
 
 
 @log_func(log)
+def on_remove_reply_keyboard(update: Update, context: CallbackContext):
+    message = update.effective_message
+    message.edit_reply_markup(reply_markup=ReplyKeyboardRemove())
+
+
+@log_func(log)
 @access_check(log)
 def on_request(update: Update, context: CallbackContext):
     message = update.effective_message
@@ -174,12 +181,18 @@ def setup(dp: Dispatcher):
             on_get_bot_password
         )
     )
+    dp.add_handler(CommandHandler(COMMAND_GET_BOT_PASSWORD, on_get_bot_password, FILTER_BY_ADMIN))
+
     dp.add_handler(
         MessageHandler(
             FILTER_BY_ADMIN & Filters.regex(PATTERN_SET_BOT_PASSWORD),
             on_set_bot_password
         )
     )
+    dp.add_handler(CommandHandler(COMMAND_SET_BOT_PASSWORD, on_set_bot_password, FILTER_BY_ADMIN))
+
+    dp.add_handler(CommandHandler(COMMAND_REMOVE_REPLY_KEYBOARD, on_remove_reply_keyboard))
+    dp.add_handler(MessageHandler(PATTERN_REMOVE_REPLY_KEYBOARD, on_remove_reply_keyboard))
 
     dp.add_handler(MessageHandler(Filters.text, on_request))
 
