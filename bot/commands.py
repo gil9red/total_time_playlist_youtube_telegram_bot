@@ -4,6 +4,8 @@
 __author__ = 'ipetrash'
 
 
+import time
+
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove
 from telegram.ext import (
     Dispatcher, CallbackContext, MessageHandler, CommandHandler, Filters, CallbackQueryHandler
@@ -113,8 +115,12 @@ def on_typing_bot_password(update: Update, context: CallbackContext):
 
 @log_func(log)
 def on_remove_reply_keyboard(update: Update, context: CallbackContext):
-    message = update.effective_message
-    message.edit_reply_markup(reply_markup=ReplyKeyboardRemove())
+    message = update.effective_message.reply_text(
+        text=SeverityEnum.INFO.value.format(text='In progress...'),
+        reply_markup=ReplyKeyboardRemove()
+    )
+    time.sleep(1)
+    message.delete()
 
 
 @log_func(log)
@@ -192,7 +198,7 @@ def setup(dp: Dispatcher):
     dp.add_handler(CommandHandler(COMMAND_SET_BOT_PASSWORD, on_set_bot_password, FILTER_BY_ADMIN))
 
     dp.add_handler(CommandHandler(COMMAND_REMOVE_REPLY_KEYBOARD, on_remove_reply_keyboard))
-    dp.add_handler(MessageHandler(PATTERN_REMOVE_REPLY_KEYBOARD, on_remove_reply_keyboard))
+    dp.add_handler(MessageHandler(Filters.regex(PATTERN_REMOVE_REPLY_KEYBOARD), on_remove_reply_keyboard))
 
     dp.add_handler(MessageHandler(Filters.text, on_request))
 
