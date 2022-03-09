@@ -8,6 +8,7 @@ import datetime as DT
 import json
 import re
 import time
+import traceback
 
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Generator, Callable, Any, Tuple
@@ -20,6 +21,10 @@ import tzlocal
 import dpath.util
 
 import requests
+
+
+class AlertError(Exception):
+    pass
 
 
 # SOURCE: https://github.com/gil9red/SimplePyScripts/blob/f0403620f7948306ad9e34a373f2aabc0237fb2a/seconds_to_str.py
@@ -55,6 +60,39 @@ def download_url_as_bytes(url: str) -> bytes:
     rs = session.get(url)
     rs.raise_for_status()
     return rs.content
+
+
+def raise_if_error(yt_initial_data: dict):
+    # NOTE: Example:
+    """
+    ...
+    "alerts": [
+        {
+            "alertRenderer": {
+                "type": "ERROR",
+                "text": {
+                    "runs": [
+                        {
+                            "text": "Этот тип плейлиста недоступен для просмотра."
+                        }
+                    ]
+                }
+            }
+        }
+    ],
+    ...
+    """
+
+    try:
+        for alert in dpath.util.values(yt_initial_data, '**/alertRenderer'):
+            if alert['type'] != 'ERROR':
+                continue
+
+            text = dpath.util.get(alert, 'text/runs/0/text')
+            raise AlertError(text)
+
+    except KeyError:
+        pass
 
 
 @dataclass
@@ -120,6 +158,9 @@ class Video:
 
     @classmethod
     def get_from(cls, data_video: Dict, url: str, parent_context: Context = None) -> 'Video':
+        if parent_context and parent_context.yt_initial_data:
+            raise_if_error(parent_context.yt_initial_data)
+
         try:
             title = dpath.util.get(data_video, 'title/runs/0/text')
         except KeyError:
@@ -192,19 +233,35 @@ class Playlist:
         return parse_qs(parsed_url.query)['list'][0]
 
     @classmethod
+    def get_url(cls, playlist_id: str) -> str:
+        return f'https://www.youtube.com/playlist?list={playlist_id}'
+
+    @classmethod
     def get_playlist_title(cls, yt_initial_data: dict) -> str:
-        return dpath.util.get(yt_initial_data, '**/metadata/playlistMetadataRenderer/title')
+        try:
+            # Playlist
+            return dpath.util.get(yt_initial_data, '**/metadata/playlistMetadataRenderer/title')
+        except KeyError:
+            # Mix
+            return dpath.util.get(yt_initial_data, '**/playlist/playlist/title')
 
     @classmethod
     def get_from(cls, url_or_id: str) -> 'Playlist':
         if url_or_id.startswith('http'):
             url = url_or_id
             playlist_id = cls.get_id_from_url(url)
+
+            # Extracting playlist url from url video
+            if '/watch?' in url:
+                url = cls.get_url(playlist_id)
+
         else:
             playlist_id = url_or_id
-            url = f'https://www.youtube.com/playlist?list={playlist_id}'
+            url = cls.get_url(playlist_id)
 
         rs, yt_initial_data = load(url)
+
+        raise_if_error(yt_initial_data)
 
         # NOTE: Оригинальный url может поменяться, лучше брать тот, что будет после запроса
         url = rs.url
@@ -403,7 +460,9 @@ def load(url: str) -> Tuple[requests.Response, dict]:
 
 
 def get_raw_video_renderer_items(yt_initial_data: Dict) -> List[Dict]:
-    for render in ['**/gridVideoRenderer', '**/videoRenderer', '**/playlistVideoRenderer']:
+    for render in [
+        '**/gridVideoRenderer', '**/videoRenderer', '**/playlistVideoRenderer', '**/playlistPanelVideoRenderer',
+    ]:
         items = dpath.util.values(yt_initial_data, render)
         if items:
             return items
@@ -427,6 +486,11 @@ def get_generator_raw_video_list_from_data(yt_initial_data: dict, rs: requests.R
         try:
             continuation_item = dpath.util.get(data, '**/continuationItemRenderer')
         except KeyError:
+            break
+        except ValueError:
+            # TODO: fix it for "Mix"
+            # Ignore
+            print("Warning:\n" + traceback.format_exc())
             break
 
         url_next_page_data = urljoin(rs.url, dpath.util.get(continuation_item, '**/webCommandMetadata/apiUrl'))
@@ -523,6 +587,13 @@ if __name__ == '__main__':
     assert playlist_v1.duration_text == playlist_v2.duration_text
     assert len(playlist_v1.video_list) == len(playlist_v2.video_list)
     assert playlist_v1.video_list == playlist_v2.video_list
+
+    print('\n' + '-' * 100 + '\n')
+
+    # Getting "playlist" from url video
+    url_video = 'https://www.youtube.com/watch?v=m1bPr3FRV1w&list=PLgqDz7CZ-6NbDjtcYuPFW2wb2LS7BQJMb&index=3'
+    print('From url video:')
+    print(Playlist.get_from(url_video))
 
     print('\n' + '-' * 100 + '\n')
 
@@ -642,3 +713,15 @@ if __name__ == '__main__':
     items = search_youtube_with_filter(url, filter_func=lambda name: text in name and 'эпизод' in name.lower())
     print(f'Filtered items ({len(items)}): {items}')
     # Filtered items (14): ['ТВОРЕНИЯ ВЕЛЬЗЕВУЛА - Sally Face [ЭПИЗОД 4] #9', ..., 'ПОИСК МЕРТВЫХ ЛЮДЕЙ ☠️ Sally Face [ЭПИЗОД 2] #4']
+
+    print('\n' + '-' * 100 + '\n')
+
+    # Test for MIX
+    try:
+        url = 'https://www.youtube.com/watch?v=QKEjrOIrCBI&list=RDQKEjrOIrCBI&start_radio=1'
+        playlist = Playlist.get_from(url)
+        print(playlist)
+        print(len(playlist.video_list))
+        __print_video_list(playlist.video_list)
+    except AlertError as e:
+        print(f'Error: {str(e)!r} for {url}')
