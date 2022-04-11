@@ -11,7 +11,7 @@ from telegram.ext import (
     Dispatcher, CallbackContext, MessageHandler, CommandHandler, Filters, CallbackQueryHandler
 )
 
-from bot.common import reply_message, log_func, process_error, log, SeverityEnum
+from bot.common import reply_message, log_func, process_error, log, SeverityEnum, show_temp_message
 from bot.auth import (
     FILTER_BY_ADMIN, MARKUP_REPLY_ADMIN, MARKUP_INLINE_SET_BOT_PASSWORD,
     is_admin, get_bot_password, set_bot_password, access_check, generate_new_password, StateEnum, BotDataEnum
@@ -115,19 +115,28 @@ def on_typing_bot_password(update: Update, context: CallbackContext):
 
 @log_func(log)
 def on_remove_reply_keyboard(update: Update, context: CallbackContext):
-    message = update.effective_message.reply_text(
-        text=SeverityEnum.INFO.value.format(text='In progress...'),
-        reply_markup=ReplyKeyboardRemove()
-    )
-    time.sleep(1)
-    message.delete()
+    with show_temp_message(
+            text='In progress...',
+            update=update,
+            context=context,
+            severity=SeverityEnum.INFO,
+            reply_markup=ReplyKeyboardRemove(),
+    ):
+        time.sleep(1)
 
 
 @log_func(log)
 @access_check(log)
 def on_request(update: Update, context: CallbackContext):
     message = update.effective_message
-    reply_playlist(message.text, update, context, show_full=False)
+
+    with show_temp_message(
+            text='In progress...',
+            update=update,
+            context=context,
+            severity=SeverityEnum.INFO,
+    ):
+        reply_playlist(message.text, update, context, show_full=False)
 
 
 @log_func(log)

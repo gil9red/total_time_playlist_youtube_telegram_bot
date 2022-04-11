@@ -3,6 +3,7 @@
 
 __author__ = 'ipetrash'
 
+
 import enum
 import functools
 import logging
@@ -12,7 +13,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Union
 
-from telegram import Update, ReplyMarkup
+from telegram import Update, ReplyMarkup, Message
 from telegram.ext import CallbackContext
 
 import config
@@ -99,19 +100,62 @@ def reply_message(
         reply_markup: ReplyMarkup = None,
         quote: bool = True,
         **kwargs
-):
+) -> list[Message]:
     message = update.effective_message
 
     text = severity.value.format(text=text)
 
+    result = []
     for n in range(0, len(text), config.MAX_MESSAGE_LENGTH):
         mess = text[n: n + config.MAX_MESSAGE_LENGTH]
-        message.reply_text(
-            mess,
-            reply_markup=reply_markup,
-            quote=quote,
-            **kwargs
+        result.append(
+            message.reply_text(
+                mess,
+                reply_markup=reply_markup,
+                quote=quote,
+                **kwargs
+            )
         )
+
+    return result
+
+
+class show_temp_message:
+    def __init__(
+            self,
+            text: str,
+            update: Update,
+            context: CallbackContext,
+            severity: SeverityEnum = SeverityEnum.NONE,
+            reply_markup: ReplyMarkup = None,
+            quote: bool = True,
+            **kwargs,
+    ):
+        self.text = text
+        self.update = update
+        self.context = context
+        self.severity = severity
+        self.reply_markup = reply_markup
+        self.quote = quote
+        self.kwargs: dict = kwargs
+        self.message: Message = None
+
+    def __enter__(self):
+        self.message = reply_message(
+            text=self.text,
+            update=self.update,
+            context=self.context,
+            severity=self.severity,
+            reply_markup=self.reply_markup,
+            quote=self.quote,
+            **self.kwargs,
+        )[0]
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.message:
+            self.message.delete()
+        return True
 
 
 def process_error(log: logging.Logger, update: Update, context: CallbackContext):
