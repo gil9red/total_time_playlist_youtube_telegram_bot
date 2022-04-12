@@ -91,6 +91,9 @@ class SeverityEnum(enum.Enum):
     INFO = 'ℹ️ {text}'
     ERROR = '⚠ {text}'
 
+    def get_text(self, text: str) -> str:
+        return self.value.format(text=text)
+
 
 def reply_message(
         text: str,
@@ -103,7 +106,7 @@ def reply_message(
 ) -> list[Message]:
     message = update.effective_message
 
-    text = severity.value.format(text=text)
+    text = severity.get_text(text)
 
     result = []
     for n in range(0, len(text), config.MAX_MESSAGE_LENGTH):
@@ -118,44 +121,6 @@ def reply_message(
         )
 
     return result
-
-
-class show_temp_message:
-    def __init__(
-            self,
-            text: str,
-            update: Update,
-            context: CallbackContext,
-            severity: SeverityEnum = SeverityEnum.NONE,
-            reply_markup: ReplyMarkup = None,
-            quote: bool = True,
-            **kwargs,
-    ):
-        self.text = text
-        self.update = update
-        self.context = context
-        self.severity = severity
-        self.reply_markup = reply_markup
-        self.quote = quote
-        self.kwargs: dict = kwargs
-        self.message: Message = None
-
-    def __enter__(self):
-        self.message = reply_message(
-            text=self.text,
-            update=self.update,
-            context=self.context,
-            severity=self.severity,
-            reply_markup=self.reply_markup,
-            quote=self.quote,
-            **self.kwargs,
-        )[0]
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        if self.message:
-            self.message.delete()
-        return True
 
 
 def process_error(log: logging.Logger, update: Update, context: CallbackContext):

@@ -11,7 +11,7 @@ from telegram.ext import (
     Dispatcher, CallbackContext, MessageHandler, CommandHandler, Filters, CallbackQueryHandler
 )
 
-from bot.common import reply_message, log_func, process_error, log, SeverityEnum, show_temp_message
+from bot.common import reply_message, log_func, process_error, log, SeverityEnum
 from bot.auth import (
     FILTER_BY_ADMIN, MARKUP_REPLY_ADMIN, MARKUP_INLINE_SET_BOT_PASSWORD,
     is_admin, get_bot_password, set_bot_password, access_check, generate_new_password, StateEnum, BotDataEnum
@@ -21,6 +21,7 @@ from bot.regexp_patterns import (
     PATTERN_GET_BOT_PASSWORD, PATTERN_SET_BOT_PASSWORD, COMMAND_GET_BOT_PASSWORD,
     COMMAND_SET_BOT_PASSWORD, COMMAND_REMOVE_REPLY_KEYBOARD, PATTERN_REMOVE_REPLY_KEYBOARD
 )
+from third_party.auto_in_progress_message import show_temp_message, ProgressValue
 from third_party.regexp import fill_string_pattern
 from third_party.youtube_com__results_search_query import Playlist
 
@@ -116,10 +117,9 @@ def on_typing_bot_password(update: Update, context: CallbackContext):
 @log_func(log)
 def on_remove_reply_keyboard(update: Update, context: CallbackContext):
     with show_temp_message(
-            text='In progress...',
+            text=SeverityEnum.INFO.get_text('In progress...'),
             update=update,
             context=context,
-            severity=SeverityEnum.INFO,
             reply_markup=ReplyKeyboardRemove(),
     ):
         time.sleep(1)
@@ -131,10 +131,10 @@ def on_request(update: Update, context: CallbackContext):
     message = update.effective_message
 
     with show_temp_message(
-            text='In progress...',
+            text=SeverityEnum.INFO.get_text('In progress'),
             update=update,
             context=context,
-            severity=SeverityEnum.INFO,
+            progress_value=ProgressValue.POINTS,
     ):
         reply_playlist(message.text, update, context, show_full=False)
 
