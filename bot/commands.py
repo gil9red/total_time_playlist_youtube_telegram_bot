@@ -21,7 +21,7 @@ from bot.regexp_patterns import (
     PATTERN_GET_BOT_PASSWORD, PATTERN_SET_BOT_PASSWORD, COMMAND_GET_BOT_PASSWORD,
     COMMAND_SET_BOT_PASSWORD, COMMAND_REMOVE_REPLY_KEYBOARD, PATTERN_REMOVE_REPLY_KEYBOARD
 )
-from third_party.auto_in_progress_message import show_temp_message, ProgressValue
+from third_party.auto_in_progress_message import show_temp_message_decorator, ProgressValue
 from third_party.regexp import fill_string_pattern
 from third_party.youtube_com__results_search_query import Playlist
 
@@ -115,28 +115,23 @@ def on_typing_bot_password(update: Update, context: CallbackContext):
 
 
 @log_func(log)
+@show_temp_message_decorator(
+    text=SeverityEnum.INFO.get_text('In progress...'),
+    reply_markup=ReplyKeyboardRemove(),
+)
 def on_remove_reply_keyboard(update: Update, context: CallbackContext):
-    with show_temp_message(
-            text=SeverityEnum.INFO.get_text('In progress...'),
-            update=update,
-            context=context,
-            reply_markup=ReplyKeyboardRemove(),
-    ):
-        time.sleep(1)
+    time.sleep(1)
 
 
 @log_func(log)
 @access_check(log)
+@show_temp_message_decorator(
+    text=SeverityEnum.INFO.get_text('In progress'),
+    progress_value=ProgressValue.POINTS,
+)
 def on_request(update: Update, context: CallbackContext):
     message = update.effective_message
-
-    with show_temp_message(
-            text=SeverityEnum.INFO.get_text('In progress'),
-            update=update,
-            context=context,
-            progress_value=ProgressValue.POINTS,
-    ):
-        reply_playlist(message.text, update, context, show_full=False)
+    reply_playlist(message.text, update, context, show_full=False)
 
 
 @log_func(log)
