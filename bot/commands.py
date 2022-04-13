@@ -72,13 +72,21 @@ def reply_playlist(playlist_id_or_url: str, update: Update, context: CallbackCon
 
 @log_func(log)
 def on_start(update: Update, context: CallbackContext):
-    markup = MARKUP_REPLY_ADMIN if is_admin(update) else ReplyKeyboardRemove()
+    markup = ReplyKeyboardRemove()
+    text = (
+        'Bot for displaying the total duration of the youtube playlist.\n\n'
+        'Send me an id or link to a playlist (or video with playlist).\n'
+        'Examples:\n'
+        '    * PLndO6DOY2cLyxQYX7pkDspTJ42JWx07AO\n'
+        '    * https://www.youtube.com/playlist?list=PLndO6DOY2cLyxQYX7pkDspTJ42JWx07AO\n'
+        '    * https://www.youtube.com/watch?v=4ewTMva83tQ&list=PLndO6DOY2cLyxQYX7pkDspTJ42JWx07AO'
+    )
+    if is_admin(update):
+        text += f'\n\nUse /{COMMAND_REMOVE_REPLY_KEYBOARD} for remove reply keyboard'
+        markup = MARKUP_REPLY_ADMIN
 
     reply_message(
-        'Bot for displaying the total duration of the youtube playlist.\n\n'
-        'Send me an id or link to a playlist.\n'
-        'Example: PLndO6DOY2cLyxQYX7pkDspTJ42JWx07AO or '
-        'https://www.youtube.com/playlist?list=PLndO6DOY2cLyxQYX7pkDspTJ42JWx07AO',
+        text,
         update, context,
         disable_web_page_preview=True,
         reply_markup=markup,
