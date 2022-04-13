@@ -134,8 +134,8 @@ def on_remove_reply_keyboard(update: Update, context: CallbackContext):
 @log_func(log)
 @access_check(log)
 @show_temp_message_decorator(
-    text=SeverityEnum.INFO.get_text('In progress'),
-    progress_value=ProgressValue.POINTS,
+    text=SeverityEnum.INFO.get_text('In progress {value}'),
+    progress_value=ProgressValue.RECTS_SMALL,
 )
 def on_request(update: Update, context: CallbackContext):
     message = update.effective_message

@@ -19,17 +19,46 @@ from telegram.error import BadRequest
 
 class ProgressValue(enum.Enum):
     LINES = '|', '/', '-', '\\'
+    SPINNER = '◜', '◝', '◞', '◟'
     POINTS = '.', '..', '...'
     MOON_PHASES = '🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘'
+    BLOCKS = '▒▒▒▒▒', '█▒▒▒▒', '██▒▒▒', '███▒▒', '████▒', '█████'
+    RECTS_LARGE = '▢▢▢▢▢', '■▢▢▢▢', '■■▢▢▢', '■■■▢▢', '■■■■▢', '■■■■■'
+    RECTS_SMALL = '□□□□□', '■□□□□', '■■□□□', '■■■□□', '■■■■□', '■■■■■'
+    PARALLELOGRAMS = '▱', '▰▱▱▱▱', '▰▰▱▱▱', '▰▰▰▱▱', '▰▰▰▰▱', '▰▰▰▰▰'
+    CIRCLES = '⚪⚪⚪⚪⚪', '⚫⚪⚪⚪⚪', '⚫⚫⚪⚪⚪', '⚫⚫⚫⚪⚪', '⚫⚫⚫⚫⚪', '⚫⚫⚫⚫⚫'
+
+    @classmethod
+    def get_text(
+            cls,
+            text_fmt: str = 'In progress {value} ({seconds} seconds)',
+            value: str = '',
+            seconds: int = 0,
+    ) -> str:
+        return text_fmt.format(value=value, seconds=seconds)
+
+    def get_init_text(
+            self,
+            text_fmt: str = 'In progress {value} ({seconds} seconds)',
+            seconds: int = 0,
+    ) -> str:
+        return self.get_text(
+            value=self.value[0],
+            seconds=seconds,
+            text_fmt=text_fmt
+        )
 
 
 class InfinityProgressIndicatorThread(threading.Thread):
     def __init__(
             self,
-            text: str,
+            text_fmt: str,
             message: Message,
             progress_value: ProgressValue = ProgressValue.POINTS,
             parse_mode: ParseMode = None,
+            reply_markup: ReplyMarkup = None,
+            skip_progress: int = 1,
+            init_seconds: int = 0,
             *args,
             **kwargs
     ):
@@ -40,20 +69,41 @@ class InfinityProgressIndicatorThread(threading.Thread):
         self._stop = threading.Event()
         self._progress_bar = cycle(progress_value.value)
 
-        self.text = text
+        for _ in range(skip_progress):
+            next(self._progress_bar)
+
+        self.text_fmt = text_fmt
         self.message = message
         self.parse_mode = parse_mode
+        self.reply_markup = reply_markup
+
+        self._seconds: int = init_seconds
+        self.init_seconds: int = init_seconds
 
     def run(self):
-        while not self.is_stopped():
-            text = f'{self.text} {next(self._progress_bar)}'
+        self._seconds = self.init_seconds
+
+        while True:
+            time.sleep(1)
+            if self.is_stopped():
+                break
+
+            self._seconds += 1
+
+            text = ProgressValue.get_text(
+                text_fmt=self.text_fmt,
+                value=next(self._progress_bar),
+                seconds=self._seconds,
+            )
 
             try:
-                self.message.edit_text(text, parse_mode=self.parse_mode)
+                self.message.edit_text(
+                    text=text,
+                    parse_mode=self.parse_mode,
+                    reply_markup=self.reply_markup,
+                )
             except BadRequest:
-                return
-
-            time.sleep(1)
+                pass
 
     def stop(self):
         self._stop.set()
@@ -68,18 +118,18 @@ class show_temp_message:
             text: str,
             update: Update,
             context: CallbackContext,
+            parse_mode: ParseMode = None,
             reply_markup: ReplyMarkup = None,
             quote: bool = True,
-            parse_mode: ParseMode = None,
             progress_value: ProgressValue = None,
             **kwargs,
     ):
         self.text = text
         self.update = update
         self.context = context
+        self.parse_mode = parse_mode
         self.reply_markup = reply_markup
         self.quote = quote
-        self.parse_mode = parse_mode
         self.kwargs: dict = kwargs
         self.message: Message = None
 
@@ -87,20 +137,25 @@ class show_temp_message:
         self.thread_progress: InfinityProgressIndicatorThread = None
 
     def __enter__(self):
+        text = self.text
+        if self.progress_value:
+            text = self.progress_value.get_init_text(self.text)
+
         self.message = self.update.effective_message.reply_text(
-            text=self.text,
+            text=text,
+            parse_mode=self.parse_mode,
             reply_markup=self.reply_markup,
             quote=self.quote,
-            parse_mode=self.parse_mode,
             **self.kwargs,
         )
 
         if self.progress_value:
             self.thread_progress = InfinityProgressIndicatorThread(
-                text=self.text,
+                text_fmt=self.text,
                 message=self.message,
                 progress_value=self.progress_value,
                 parse_mode=self.parse_mode,
+                reply_markup=self.reply_markup,
             )
             self.thread_progress.start()
 
@@ -116,8 +171,8 @@ class show_temp_message:
 
 def show_temp_message_decorator(
         text: str = 'In progress...',
-        reply_markup: ReplyMarkup = None,
         parse_mode: ParseMode = None,
+        reply_markup: ReplyMarkup = None,
         progress_value: ProgressValue = None,
         **kwargs,
 ):
