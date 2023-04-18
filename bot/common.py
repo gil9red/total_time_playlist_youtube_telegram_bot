@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-__author__ = 'ipetrash'
+__author__ = "ipetrash"
 
 
 import enum
@@ -21,19 +21,23 @@ from config import DIR_LOGS
 
 
 def get_logger(
-        name: str,
-        file: Union[str, Path] = 'log.txt',
-        encoding='utf-8',
-        log_stdout=True,
-        log_file=True
-) -> 'logging.Logger':
+    name: str,
+    file: Union[str, Path] = "log.txt",
+    encoding="utf-8",
+    log_stdout=True,
+    log_file=True,
+) -> "logging.Logger":
     log = logging.getLogger(name)
     log.setLevel(logging.DEBUG)
 
-    formatter = logging.Formatter('[%(asctime)s] %(filename)s:%(lineno)d %(levelname)-8s %(message)s')
+    formatter = logging.Formatter(
+        "[%(asctime)s] %(filename)s:%(lineno)d %(levelname)-8s %(message)s"
+    )
 
     if log_file:
-        fh = RotatingFileHandler(file, maxBytes=10000000, backupCount=5, encoding=encoding)
+        fh = RotatingFileHandler(
+            file, maxBytes=10000000, backupCount=5, encoding=encoding
+        )
         fh.setFormatter(formatter)
         log.addHandler(fh)
 
@@ -65,17 +69,19 @@ def log_func(log: logging.Logger):
                 try:
                     message = update.effective_message.text
                 except:
-                    message = ''
+                    message = ""
 
                 try:
                     query_data = update.callback_query.data
                 except:
-                    query_data = ''
+                    query_data = ""
 
-                msg = f'[chat_id={chat_id}, user_id={user_id}, ' \
-                      f'first_name={first_name!r}, last_name={last_name!r}, ' \
-                      f'username={username!r}, language_code={language_code}, ' \
-                      f'message={message!r}, query_data={query_data!r}]'
+                msg = (
+                    f"[chat_id={chat_id}, user_id={user_id}, "
+                    f"first_name={first_name!r}, last_name={last_name!r}, "
+                    f"username={username!r}, language_code={language_code}, "
+                    f"message={message!r}, query_data={query_data!r}]"
+                )
                 msg = func.__name__ + msg
 
                 log.debug(msg)
@@ -83,26 +89,27 @@ def log_func(log: logging.Logger):
             return func(update, context)
 
         return wrapper
+
     return actual_decorator
 
 
 class SeverityEnum(enum.Enum):
-    NONE = '{text}'
-    INFO = 'ℹ️ {text}'
-    ERROR = '⚠ {text}'
+    NONE = "{text}"
+    INFO = "ℹ️ {text}"
+    ERROR = "⚠ {text}"
 
     def get_text(self, text: str) -> str:
         return self.value.format(text=text)
 
 
 def reply_message(
-        text: str,
-        update: Update,
-        context: CallbackContext,
-        severity: SeverityEnum = SeverityEnum.NONE,
-        reply_markup: ReplyMarkup = None,
-        quote: bool = True,
-        **kwargs
+    text: str,
+    update: Update,
+    context: CallbackContext,
+    severity: SeverityEnum = SeverityEnum.NONE,
+    reply_markup: ReplyMarkup = None,
+    quote: bool = True,
+    **kwargs,
 ) -> list[Message]:
     message = update.effective_message
 
@@ -124,9 +131,9 @@ def reply_message(
 
 
 def process_error(log: logging.Logger, update: Update, context: CallbackContext):
-    log.error('Error: %s\nUpdate: %s', context.error, update, exc_info=context.error)
+    log.error("Error: %s\nUpdate: %s", context.error, update, exc_info=context.error)
     if update:
         reply_message(config.ERROR_TEXT, update, context, severity=SeverityEnum.ERROR)
 
 
-log = get_logger(__file__, DIR_LOGS / 'log.txt')
+log = get_logger(__file__, DIR_LOGS / "log.txt")
