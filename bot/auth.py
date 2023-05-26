@@ -133,7 +133,7 @@ def access_check(log: logging.Logger):
 
                     set_user_password(context, message.text)
 
-                    text = "The password is correct!"
+                    text = "The password is correct! Access is now allowed! Repeat request"
                     log.info(text)
 
                     reply_message(
