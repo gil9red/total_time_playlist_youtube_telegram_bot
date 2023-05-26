@@ -3,11 +3,11 @@
 
 __author__ = "ipetrash"
 
+
 import enum
 import functools
 import logging
 import uuid
-from typing import Union
 
 from telegram import (
     Update,
@@ -55,26 +55,26 @@ def is_admin(update: Update) -> bool:
 
 
 def set_bot_password(
-    context_or_dispatcher: Union[CallbackContext, Dispatcher],
+    context_or_dispatcher: CallbackContext | Dispatcher,
     password: str = DEFAULT_PASSWORD,
 ):
     context_or_dispatcher.bot_data[BotDataEnum.PASSWORD] = password
     context_or_dispatcher.user_data[BotDataEnum.STATE] = None
 
 
-def get_bot_password(context_or_dispatcher: Union[CallbackContext, Dispatcher]) -> str:
+def get_bot_password(context_or_dispatcher: CallbackContext | Dispatcher) -> str:
     return context_or_dispatcher.bot_data.get(BotDataEnum.PASSWORD)
 
 
 def set_user_password(
-    context_or_dispatcher: Union[CallbackContext, Dispatcher],
+    context_or_dispatcher: CallbackContext | Dispatcher,
     password: str,
 ):
     context_or_dispatcher.user_data[BotDataEnum.PASSWORD] = password
     context_or_dispatcher.user_data[BotDataEnum.STATE] = None
 
 
-def get_user_password(context_or_dispatcher: Union[CallbackContext, Dispatcher]) -> str:
+def get_user_password(context_or_dispatcher: CallbackContext | Dispatcher) -> str:
     return context_or_dispatcher.user_data.get(BotDataEnum.PASSWORD)
 
 
@@ -84,6 +84,18 @@ def access_check(log: logging.Logger):
         def wrapper(update: Update, context: CallbackContext):
             message = update.message
             is_message = bool(update.message)
+
+            user_id = None
+            if update.effective_user:
+                user_id = update.effective_user.id
+            if not user_id:
+                reply_message(
+                    "Allowed for users only",
+                    update, context,
+                    severity=SeverityEnum.ERROR,
+                )
+                return
+
             state = context.user_data.get(BotDataEnum.STATE)
 
             if is_admin(update):
