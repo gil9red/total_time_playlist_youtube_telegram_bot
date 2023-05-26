@@ -121,7 +121,7 @@ def access_check(log: logging.Logger):
 
                     set_user_password(context, message.text)
 
-                    text = "Password has successful changed!"
+                    text = "The password is correct!"
                     log.info(text)
 
                     reply_message(
