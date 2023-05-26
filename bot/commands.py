@@ -35,6 +35,8 @@ from bot.auth import (
     BotDataEnum,
 )
 from bot.regexp_patterns import (
+    COMMAND_START,
+    COMMAND_HELP,
     PATTERN_PLAYLIST_ID,
     PATTERN_GENERATE_RANDOM_PASSWORD,
     PATTERN_CANCEL,
@@ -114,7 +116,12 @@ def on_start(update: Update, context: CallbackContext):
         "    * https://www.youtube.com/watch?v=4ewTMva83tQ&list=PLndO6DOY2cLyxQYX7pkDspTJ42JWx07AO"
     )
     if is_admin(update):
-        text += f"\n\nUse /{COMMAND_REMOVE_REPLY_KEYBOARD} for remove reply keyboard"
+        text += (
+            "\n"
+            f"\nUse /{COMMAND_REMOVE_REPLY_KEYBOARD} for remove reply keyboard"
+            f"\nUse /{COMMAND_SET_BOT_PASSWORD} for set bot password"
+            f"\nUse /{COMMAND_GET_BOT_PASSWORD} for get bot password"
+        )
         markup = MARKUP_REPLY_ADMIN
 
     reply_message(
@@ -224,7 +231,8 @@ def on_error(update: Update, context: CallbackContext):
 def setup(dp: Dispatcher):
     set_bot_password(dp)
 
-    dp.add_handler(CommandHandler("start", on_start))
+    dp.add_handler(CommandHandler(COMMAND_START, on_start))
+    dp.add_handler(CommandHandler(COMMAND_HELP, on_start))
 
     dp.add_handler(
         MessageHandler(

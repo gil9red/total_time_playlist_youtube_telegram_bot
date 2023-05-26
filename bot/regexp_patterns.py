@@ -13,6 +13,9 @@ def pattern_to_command(pattern: re.Pattern) -> str:
     return pattern
 
 
+COMMAND_START = "start"
+COMMAND_HELP = "help"
+
 PATTERN_PLAYLIST_ID = re.compile("^playlist_id=(.+)$")
 PATTERN_GENERATE_RANDOM_PASSWORD = re.compile("^generate_random_password$")
 PATTERN_CANCEL = re.compile("^cancel$")
