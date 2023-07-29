@@ -38,6 +38,7 @@ from bot.regexp_patterns import (
     COMMAND_START,
     COMMAND_HELP,
     PATTERN_PLAYLIST_ID,
+    PATTERN_PLAYLIST_ID_WITH_FILTERS,
     PATTERN_GENERATE_RANDOM_PASSWORD,
     PATTERN_CANCEL,
     PATTERN_GET_BOT_PASSWORD,
@@ -52,32 +53,68 @@ from third_party.auto_in_progress_message import (
     ProgressValue,
 )
 from third_party.regexp import fill_string_pattern
-from third_party.youtube_com__results_search_query import Playlist
+from third_party.youtube_com__results_search_query import Playlist, Video, seconds_to_str
 
 
-def get_description_playlist(playlist: Playlist, full=True) -> str:
+def get_description_playlist(
+    playlist: Playlist,
+    full: bool = True,
+    filters: str = None,
+) -> str:
     lines = [
-        f"Playlist {playlist.title!r}.",
+        f"Playlist {playlist.title!r}",
         f"Video count: {len(playlist.video_list)}",
     ]
+
+    seq_filters: list[int] = []
+    if filters:
+        if "," in filters:
+            seq_filters += list(map(lambda x: int(x.strip()), filters.split(",")))
+        elif "-" in filters:
+            start, end = map(int, filters.split("-"))
+            seq_filters += list(range(start, end + 1))
+
+    if seq_filters:
+        lines.append(f"Filters: {filters}")
+    
+    total_duration_seconds: int = 0
+    video_list: list[Video] = []
+    for video in playlist.video_list:
+        if seq_filters and video.seq not in seq_filters:
+            continue
+
+        video_list.append(video)
+        total_duration_seconds += video.duration_seconds
+
+    total_duration_text = seconds_to_str(total_duration_seconds)
+
+    if seq_filters:
+        lines.append(f"Filtered video count: {len(video_list)}")
+
     if full:
         lines.append("Video:")
-        for video in playlist.video_list:
+        for video in video_list:
             lines.append(f"  {video.seq}. {video.title!r} ({video.duration_text})")
         lines.append("")  # Empty line
 
     lines.append(
-        f"Total time: {playlist.duration_text} ({playlist.duration_seconds} total seconds)"
+        f"Total time: {total_duration_text} ({total_duration_seconds} total seconds)"
     )
     return "\n".join(lines)
 
 
 def reply_playlist(
-    playlist_id_or_url: str,
+    query: str,
     update: Update,
     context: CallbackContext,
-    show_full=True,
+    show_full: bool = True,
 ):
+    if " " in query:
+        playlist_id_or_url, filters = map(str.strip, query.split(" "))
+    else:
+        playlist_id_or_url = query
+        filters = ""
+
     try:
         playlist = Playlist.get_from(playlist_id_or_url)
     except:
@@ -89,17 +126,29 @@ def reply_playlist(
         reply_message(text, update, context, severity=SeverityEnum.ERROR)
         return
 
-    text = get_description_playlist(playlist, full=show_full)
+    text = get_description_playlist(playlist, full=show_full, filters=filters)
 
     if show_full:
         markup = None
     else:
-        markup = InlineKeyboardMarkup.from_button(
+        buttons = [
             InlineKeyboardButton(
                 text="Show full playlist",
                 callback_data=fill_string_pattern(PATTERN_PLAYLIST_ID, playlist.id),
             )
-        )
+        ]
+        if filters:
+            buttons.append(
+                InlineKeyboardButton(
+                    text="Show filtered playlist",
+                    callback_data=fill_string_pattern(
+                        PATTERN_PLAYLIST_ID_WITH_FILTERS,
+                        playlist.id,
+                        filters,
+                    ),
+                )
+            )
+        markup = InlineKeyboardMarkup.from_column(buttons)
 
     reply_message(text, update, context, reply_markup=markup)
 
@@ -194,6 +243,18 @@ def on_callback_get_full_playlist(update: Update, context: CallbackContext):
 
 
 @log_func(log)
+@access_check(log)
+def on_callback_get_filtered_playlist(update: Update, context: CallbackContext):
+    query = update.callback_query
+    if query:
+        query.answer()
+
+    playlist_id, filters = context.match.groups()
+    query = f"{playlist_id} {filters}"
+    reply_playlist(query, update, context, show_full=True)
+
+
+@log_func(log)
 def on_callback_generate_random_password(update: Update, context: CallbackContext):
     query = update.callback_query
     if query:
@@ -267,6 +328,9 @@ def setup(dp: Dispatcher):
 
     dp.add_handler(
         CallbackQueryHandler(on_callback_get_full_playlist, pattern=PATTERN_PLAYLIST_ID)
+    )
+    dp.add_handler(
+        CallbackQueryHandler(on_callback_get_filtered_playlist, pattern=PATTERN_PLAYLIST_ID_WITH_FILTERS)
     )
     dp.add_handler(
         CallbackQueryHandler(

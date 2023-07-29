@@ -17,6 +17,7 @@ COMMAND_START = "start"
 COMMAND_HELP = "help"
 
 PATTERN_PLAYLIST_ID = re.compile("^playlist_id=(.+)$")
+PATTERN_PLAYLIST_ID_WITH_FILTERS = re.compile("^id=(.+) seqs=(.+)$")
 PATTERN_GENERATE_RANDOM_PASSWORD = re.compile("^generate_random_password$")
 PATTERN_CANCEL = re.compile("^cancel$")
 
