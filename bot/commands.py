@@ -53,7 +53,7 @@ from third_party.auto_in_progress_message import (
     ProgressValue,
 )
 from third_party.regexp import fill_string_pattern
-from third_party.youtube_com__results_search_query import Playlist, Video, seconds_to_str
+from third_party.youtube_com.common import Playlist, Video, seconds_to_str
 
 
 def get_description_playlist(
