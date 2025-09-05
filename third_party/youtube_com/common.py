@@ -9,13 +9,14 @@ import re
 import time
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, date
 from typing import Generator
 from urllib.parse import urljoin, urlparse, parse_qs
 
 # pip install dpath==2.0.5
 import dpath.util
 
+# pip install requests==2.32.2
 import requests
 
 # pip install tzlocal==4.1
@@ -34,6 +35,39 @@ BASE_URL = "https://www.youtube.com"
 
 session = requests.Session()
 session.headers["User-Agent"] = USER_AGENT
+
+# NOTE: Accept all (required for mixes)
+# SOURCE: https://github.com/yt-dlp/yt-dlp/blob/ed24640943872c4cf30d7cc4601bec87b50ba03c/yt_dlp/extractor/youtube/_base.py#L614
+session.cookies["SOCS"] = "CAI"
+
+
+def process_text(text: str) -> str:
+    return text.strip().replace("\xa0", " ").replace("\u202f", " ")
+
+
+def parse_date(value: str) -> date | None:
+    for regex_pattern, months in [
+        (
+            r"(?P<month>%s) (?P<day>\d{,2}), (?P<year>\d{4})",
+            ['jan', 'feb', 'mar', 'apr', 'may', 'june', 'july', 'aug', 'sep', 'oct', 'nov', 'dec'],
+        ),
+        (
+            r"(?P<day>\d{,2}) (?P<month>%s)\.? (?P<year>\d{4})",
+            ['янв', 'февр', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сент', 'окт', 'нояб', 'дек'],
+        ),
+    ]:
+        regex = regex_pattern % "|".join(months)
+        m = re.search(regex, value, flags=re.IGNORECASE)
+        if not m:
+            continue
+
+        return date(
+            year=int(m["year"]),
+            month=months.index(m["month"]) + 1,
+            day=int(m["day"]),
+        )
+
+    return
 
 
 # SOURCE: https://github.com/gil9red/SimplePyScripts/blob/f0403620f7948306ad9e34a373f2aabc0237fb2a/seconds_to_str.py
@@ -240,9 +274,12 @@ def get_context_with_continuation(
     if not innertube_context:
         raise Exception("Значение INNERTUBE_CONTEXT должно быть задано в yt_cfg_data!")
 
-    continuation_endpoint = continuation_item["continuationEndpoint"]
-    click_tracking_params = continuation_endpoint["clickTrackingParams"]
-    continuation_token = continuation_endpoint["continuationCommand"]["token"]
+    continuation_endpoint: dict = continuation_item["continuationEndpoint"]
+    click_tracking_params: str = continuation_endpoint["clickTrackingParams"]
+    continuation_token: str = dpath.util.get(
+        continuation_endpoint,
+        glob="**/continuationCommand/token",
+    )
 
     pattern_next_page_data = get_context_data(url, innertube_context)
     pattern_next_page_data["continuation"] = continuation_token
@@ -294,9 +331,13 @@ def get_generator_raw_video_list_from_data(
         except (KeyError, IndexError):
             break
 
-        url_next_page_data = get_api_url_from_continuation_item(rs.url, continuation_item)
+        url_next_page_data = get_api_url_from_continuation_item(
+            rs.url, continuation_item
+        )
 
-        next_page_data = get_context_with_continuation(rs.url, yt_cfg_data, continuation_item)
+        next_page_data = get_context_with_continuation(
+            rs.url, yt_cfg_data, continuation_item
+        )
         rs = session.post(
             url_next_page_data,
             params={"key": innertube_api_key},
@@ -359,6 +400,10 @@ class Video:
     seq: int | None = None
     is_live_now: bool = False
     thumbnails: list[Thumbnail] = field(default_factory=list, repr=False, compare=False)
+    view_count: int | None = None
+    create_date: date | None = None
+    create_date_raw: str | None = None
+    is_lasy: bool = True
     context: Context = field(default=None, repr=False, compare=False)
 
     @classmethod
@@ -444,20 +489,37 @@ class Video:
             url_video = cls.parse_url(data_video)
 
         duration_seconds = cls.parse_duration_seconds(data_video)
-
-        duration_text = None
         if duration_seconds:
             duration_text = seconds_to_str(duration_seconds)
+        else:
+            duration_text = None
 
         try:
             seq = int(data_video["index"]["simpleText"])
         except:
             seq = None
 
+        try:
+            create_date_raw: str | None = process_text(
+                data_video["dateText"]["simpleText"]
+            )
+        except:
+            create_date_raw = None
+
+        try:
+            create_date: date | None = parse_date(create_date_raw)
+        except:
+            create_date = None
+
         thumbnails = [
             Thumbnail.get_from(thumbnail)
             for thumbnail in dpath.util.values(data_video, "thumbnail/thumbnails/*")
         ]
+
+        try:
+            view_count = int(data_video["viewCount"])
+        except:
+            view_count = None
 
         context = Context(data_video=data_video)
         if parent_context:
@@ -474,6 +536,9 @@ class Video:
             seq=seq,
             is_live_now=cls.get_is_live_now(data_video),
             thumbnails=thumbnails,
+            view_count=view_count,
+            create_date=create_date,
+            create_date_raw=create_date_raw,
             context=context,
         )
 
@@ -512,11 +577,14 @@ class Video:
         #       в parse_from смог разобрать
         dict_merge(data_video, yt_initial_player_response["videoDetails"])
 
-        return cls.parse_from(
+        video = cls.parse_from(
             data_video=data_video,
             parent_context=context,
             url_video=url,
         )
+        video.is_lasy = False
+
+        return video
 
     def get_transcripts(self) -> list[TranscriptItem]:
         yt_cfg_data = self.context.yt_cfg_data
@@ -622,92 +690,3 @@ class Playlist:
             duration_text=seconds_to_str(total_seconds),
             context=context,
         )
-
-
-if __name__ == "__main__":
-    url = "https://www.youtube.com/watch?v=rgYQ7nUulAQ"
-    video_id = Video.get_id_from_url(url)
-    assert video_id == "rgYQ7nUulAQ"
-
-    new_url = Video.get_url(video_id)
-    assert url == new_url
-
-    video = Video.get_from(url)
-    print(video)
-    # Video(id='rgYQ7nUulAQ', url='https://www.youtube.com/watch?v=rgYQ7nUulAQ', title='Building a Website (P1D2) - Live Coding with Jesse', duration_seconds=1929, duration_text='00:32:09', seq=None, is_live_now=False)
-
-    print()
-
-    transcripts = video.get_transcripts()
-    assert len(transcripts)
-    print(f"Transcripts ({len(transcripts)}):")
-    print(*transcripts[:3], sep="\n")
-    print("...")
-    print(*transcripts[-3:], sep="\n")
-    """
-    Transcripts (275):
-    TranscriptItem(start_ms=8840, end_ms=14219, start_time_str='0:08', text="hi everybody\n\nI'm Jesse wykel and I'm a front-end")
-    TranscriptItem(start_ms=14219, end_ms=21029, start_time_str='0:14', text="developer and this is my first live\n\nstream for free code camp I've done some")
-    TranscriptItem(start_ms=21029, end_ms=28949, start_time_str='0:21', text='live streams on my own channel but this\n\nis the first one on free code camp which')
-    ...
-    TranscriptItem(start_ms=1908679, end_ms=1915690, start_time_str='31:48', text="if there's any tips for me I'm still\n\npretty new at this live-streaming thing\n\nso definitely any tips are are very")
-    TranscriptItem(start_ms=1915690, end_ms=1920950, start_time_str='31:55', text="welcome all right so I'll end the stream")
-    TranscriptItem(start_ms=1920950, end_ms=1928329, start_time_str='32:00', text="now thanks again have a great day I'll\n\nbe back tomorrow\n\n[Music]")
-    """
-
-    print("\n" + "-" * 100 + "\n")
-
-    url = "https://www.youtube.com/playlist?list=PLWKjhJtqVAbknyJ7hSrf1WKh_Xnv9RL1r"
-    assert Playlist.get_id_from_url(url) == "PLWKjhJtqVAbknyJ7hSrf1WKh_Xnv9RL1r"
-
-    url = "http://www.youtube.com/playlist?list=PLWKjhJtqVAbknyJ7hSrf1WKh_Xnv9RL1r&feature=applinks"
-    assert Playlist.get_id_from_url(url) == "PLWKjhJtqVAbknyJ7hSrf1WKh_Xnv9RL1r"
-
-    url_playlist = (
-        "https://www.youtube.com/playlist?list=PLWKjhJtqVAbknyJ7hSrf1WKh_Xnv9RL1r"
-    )
-    rs = session.get(url_playlist)
-    data = get_yt_initial_data(rs.text)
-    playlist_title = Playlist.get_title(data)
-    print(f"Playlist title: {playlist_title!r}")
-    # Playlist title: 'Live Coding with Jesse'
-
-    print()
-
-    playlist_v1 = Playlist.get_from("PLWKjhJtqVAbknyJ7hSrf1WKh_Xnv9RL1r")
-    print(f"playlist_v1: {playlist_v1}")
-    print(
-        f"playlist_v1. Video ({len(playlist_v1.video_list)}):\n"
-        f"    First: {playlist_v1.video_list[0]}\n"
-        f"    Last:  {playlist_v1.video_list[-1]}"
-    )
-
-    print()
-
-    playlist_v2 = Playlist.get_from(url_playlist)
-    print(f"playlist_v2: {playlist_v1}")
-    print(
-        f"playlist_v2. Video ({len(playlist_v2.video_list)}):\n"
-        f"    First: {playlist_v2.video_list[0]}\n"
-        f"    Last:  {playlist_v2.video_list[-1]}"
-    )
-
-    assert playlist_v1.id == playlist_v2.id
-    assert playlist_v1.title == playlist_v2.title
-    assert playlist_v1.duration_seconds == playlist_v2.duration_seconds
-    assert playlist_v1.duration_text == playlist_v2.duration_text
-    assert len(playlist_v1.video_list) == len(playlist_v2.video_list)
-    assert playlist_v1.video_list == playlist_v2.video_list
-
-    print("\n" + "-" * 100 + "\n")
-
-    # Getting "playlist" from url video
-    url_video = "https://www.youtube.com/watch?v=m1bPr3FRV1w&list=PLgqDz7CZ-6NbDjtcYuPFW2wb2LS7BQJMb&index=3"
-    print(f"From url video: {url_video}")
-    print(Playlist.get_from(url_video))
-    print()
-
-    url_video = "https://youtu.be/LSkNXxwrjLg?list=PLscFx0v8PvufteVzSldK135ymdvxncLEe"
-    playlist = Playlist.get_from(url_video)
-    print(f"From short url video: {url_video}")
-    print(Playlist.get_from(url_video))
