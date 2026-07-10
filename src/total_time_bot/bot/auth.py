@@ -17,15 +17,21 @@ from telegram import (
 )
 from telegram.ext import Filters, CallbackContext, Dispatcher
 
-from bot.common import reply_message, SeverityEnum
-from config import USER_NAME_ADMINS, DEFAULT_PASSWORD
-from bot.regexp_patterns import (
+from total_time_bot.bot.common import (
+    reply_message,
+    SeverityEnum,
+)
+from total_time_bot.config import (
+    USER_NAME_ADMINS,
+    DEFAULT_PASSWORD,
+)
+from total_time_bot.bot.regexp_patterns import (
     PATTERN_GENERATE_RANDOM_PASSWORD,
     PATTERN_CANCEL,
     PATTERN_GET_BOT_PASSWORD,
     PATTERN_SET_BOT_PASSWORD,
 )
-from third_party.regexp import fill_string_pattern
+from total_time_bot.third_party.regexp import fill_string_pattern
 
 
 class StateEnum(enum.Enum):

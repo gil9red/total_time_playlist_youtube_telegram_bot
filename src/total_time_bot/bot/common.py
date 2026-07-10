@@ -16,8 +16,8 @@ from typing import Union
 from telegram import Update, ReplyMarkup, Message
 from telegram.ext import CallbackContext
 
-import config
-from config import DIR_LOGS
+from total_time_bot import config
+from total_time_bot.config import DIR_LOGS
 
 
 def get_logger(

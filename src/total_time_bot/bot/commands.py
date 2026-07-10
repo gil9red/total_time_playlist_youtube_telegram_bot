@@ -21,8 +21,14 @@ from telegram.ext import (
     CallbackQueryHandler,
 )
 
-from bot.common import reply_message, log_func, process_error, log, SeverityEnum
-from bot.auth import (
+from total_time_bot.bot.common import (
+    reply_message,
+    log_func,
+    process_error,
+    log,
+    SeverityEnum,
+)
+from total_time_bot.bot.auth import (
     FILTER_BY_ADMIN,
     MARKUP_REPLY_ADMIN,
     MARKUP_INLINE_SET_BOT_PASSWORD,
@@ -34,7 +40,7 @@ from bot.auth import (
     StateEnum,
     BotDataEnum,
 )
-from bot.regexp_patterns import (
+from total_time_bot.bot.regexp_patterns import (
     COMMAND_START,
     COMMAND_HELP,
     PATTERN_PLAYLIST_ID,
@@ -48,12 +54,16 @@ from bot.regexp_patterns import (
     COMMAND_REMOVE_REPLY_KEYBOARD,
     PATTERN_REMOVE_REPLY_KEYBOARD,
 )
-from third_party.auto_in_progress_message import (
+from total_time_bot.third_party.auto_in_progress_message import (
     show_temp_message_decorator,
     ProgressValue,
 )
-from third_party.regexp import fill_string_pattern
-from third_party.youtube_com.common import Playlist, Video, seconds_to_str
+from total_time_bot.third_party.regexp import fill_string_pattern
+from total_time_bot.third_party.youtube_com.api.common import (
+    Playlist,
+    Video,
+    seconds_to_str,
+)
 
 
 def get_description_playlist(

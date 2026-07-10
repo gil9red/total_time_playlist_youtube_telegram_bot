@@ -10,9 +10,9 @@ import time
 # pip install python-telegram-bot
 from telegram.ext import Updater, Defaults
 
-from config import TOKEN
-from bot.common import log
-from bot import commands
+from total_time_bot.config import TOKEN
+from total_time_bot.bot.common import log
+from total_time_bot.bot import commands
 
 
 def main():
