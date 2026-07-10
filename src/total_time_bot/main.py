@@ -15,7 +15,7 @@ from total_time_bot.bot.common import log
 from total_time_bot.bot import commands
 
 
-def main():
+def main() -> None:
     log.debug("Start")
 
     cpu_count = os.cpu_count()

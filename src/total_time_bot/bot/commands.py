@@ -86,7 +86,7 @@ def get_description_playlist(
 
     if seq_filters:
         lines.append(f"Filters: {filters}")
-    
+
     total_duration_seconds: int = 0
     video_list: list[Video] = []
     for video in playlist.video_list:
@@ -185,7 +185,8 @@ def on_start(update: Update, context: CallbackContext):
 
     reply_message(
         text,
-        update, context,
+        update,
+        context,
         disable_web_page_preview=True,
         reply_markup=markup,
     )
@@ -205,7 +206,8 @@ def on_set_bot_password(update: Update, context: CallbackContext):
 
     reply_message(
         text,
-        update, context,
+        update,
+        context,
         severity=SeverityEnum.INFO,
         reply_markup=MARKUP_INLINE_SET_BOT_PASSWORD,
     )
@@ -275,7 +277,9 @@ def on_callback_generate_random_password(update: Update, context: CallbackContex
 
     text = f"New password: {password}"
     reply_message(
-        text, update, context,
+        text,
+        update,
+        context,
         severity=SeverityEnum.INFO,
     )
 
@@ -290,7 +294,9 @@ def on_cancel_input_password(update: Update, context: CallbackContext):
 
     text = "You're canceled input password"
     reply_message(
-        text, update, context,
+        text,
+        update,
+        context,
         severity=SeverityEnum.INFO,
     )
 
@@ -340,7 +346,9 @@ def setup(dp: Dispatcher):
         CallbackQueryHandler(on_callback_get_full_playlist, pattern=PATTERN_PLAYLIST_ID)
     )
     dp.add_handler(
-        CallbackQueryHandler(on_callback_get_filtered_playlist, pattern=PATTERN_PLAYLIST_ID_WITH_FILTERS)
+        CallbackQueryHandler(
+            on_callback_get_filtered_playlist, pattern=PATTERN_PLAYLIST_ID_WITH_FILTERS
+        )
     )
     dp.add_handler(
         CallbackQueryHandler(

@@ -54,7 +54,12 @@ def log_func(log: logging.Logger):
         @functools.wraps(func)
         def wrapper(update: Update, context: CallbackContext):
             if update:
-                chat_id = user_id = first_name = last_name = username = language_code = None
+                chat_id: int | None = None
+                user_id: int | None = None
+                first_name: str | None = None
+                last_name: str | None = None
+                username: str | None = None
+                language_code: str | None = None
 
                 if update.effective_chat:
                     chat_id = update.effective_chat.id
@@ -117,13 +122,13 @@ def reply_message(
 
     result = []
     for n in range(0, len(text), config.MAX_MESSAGE_LENGTH):
-        mess = text[n: n + config.MAX_MESSAGE_LENGTH]
+        mess = text[n : n + config.MAX_MESSAGE_LENGTH]
         result.append(
             message.reply_text(
                 mess,
                 reply_markup=reply_markup,
                 quote=quote,
-                **kwargs
+                **kwargs,
             )
         )
 

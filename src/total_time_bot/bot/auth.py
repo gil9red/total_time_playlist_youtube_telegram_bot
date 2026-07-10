@@ -97,7 +97,8 @@ def access_check(log: logging.Logger):
             if not user_id:
                 reply_message(
                     "Allowed for users only",
-                    update, context,
+                    update,
+                    context,
                     severity=SeverityEnum.ERROR,
                 )
                 return
@@ -110,7 +111,9 @@ def access_check(log: logging.Logger):
                     set_bot_password(context, message.text)
                     text = "Password has successful changed!"
                     reply_message(
-                        text, update, context,
+                        text,
+                        update,
+                        context,
                         severity=SeverityEnum.INFO,
                     )
 
@@ -118,10 +121,13 @@ def access_check(log: logging.Logger):
 
             elif get_bot_password(context) != get_user_password(context):
                 if state is None or not is_message:
-                    context.user_data[BotDataEnum.STATE] = StateEnum.TYPING_USER_PASSWORD
+                    context.user_data[BotDataEnum.STATE] = (
+                        StateEnum.TYPING_USER_PASSWORD
+                    )
                     reply_message(
                         "No access! Enter your password:",
-                        update, context,
+                        update,
+                        context,
                         reply_markup=MARKUP_INLINE_SET_USER_PASSWORD,
                         severity=SeverityEnum.ERROR,
                     )
@@ -131,7 +137,9 @@ def access_check(log: logging.Logger):
                     if get_bot_password(context) != message.text:
                         text = "Invalid password!"
                         reply_message(
-                            text, update, context,
+                            text,
+                            update,
+                            context,
                             reply_markup=MARKUP_INLINE_SET_USER_PASSWORD,
                             severity=SeverityEnum.ERROR,
                         )
@@ -139,11 +147,15 @@ def access_check(log: logging.Logger):
 
                     set_user_password(context, message.text)
 
-                    text = "The password is correct! Access is now allowed! Repeat request"
+                    text: str = (
+                        "The password is correct! Access is now allowed! Repeat request"
+                    )
                     log.info(text)
 
                     reply_message(
-                        text, update, context,
+                        text,
+                        update,
+                        context,
                         severity=SeverityEnum.INFO,
                     )
 
